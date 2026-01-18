@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import Logo from "@/components/Logo";
+import ProgressIndicator from "@/components/ProgressIndicator";
 import SocialLinks from "@/components/SocialLinks";
 
 const Index = () => {
@@ -37,12 +38,15 @@ const Index = () => {
           A new era of voice technology is coming.
         </motion.p>
 
+        {/* Progress Indicator */}
+        <ProgressIndicator />
+
         {/* Launch Year */}
         <motion.div
           className="flex items-center gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
+          transition={{ duration: 0.8, delay: 0.9 }}
         >
           <div className="h-px w-8 sm:w-12 bg-border" />
           <span className="text-xs sm:text-sm font-body text-muted-foreground tracking-widest uppercase">
