@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Instagram, Twitter, Music2 } from "lucide-react";
+import { Instagram, Linkedin, Twitter } from "lucide-react";
 
 const socialLinks = [
   {
@@ -8,14 +8,14 @@ const socialLinks = [
     href: "https://instagram.com/tone2vibe",
   },
   {
+    name: "LinkedIn",
+    icon: Linkedin,
+    href: "https://linkedin.com/company/tone2vibe",
+  },
+  {
     name: "Twitter",
     icon: Twitter,
     href: "https://twitter.com/tone2vibe",
-  },
-  {
-    name: "Spotify",
-    icon: Music2,
-    href: "https://spotify.com",
   },
 ];
 
