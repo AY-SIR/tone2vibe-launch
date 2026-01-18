@@ -33,8 +33,8 @@ const Index = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
         >
-          Where creativity meets sound. A new space for those who feel the vibe 
-          and live the tone.
+          Transform your text into natural, lifelike speech. 
+          A new era of voice technology is coming.
         </motion.p>
 
         {/* Launch Year */}
