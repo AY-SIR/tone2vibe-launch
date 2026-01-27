@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import Logo from "@/components/Logo";
-import ProgressIndicator from "@/components/ProgressIndicator";
 import SocialLinks from "@/components/SocialLinks";
 
 const Index = () => {
@@ -27,19 +26,9 @@ const Index = () => {
           </h2>
         </motion.div>
 
-        {/* Subtext */}
-        <motion.p
-          className="text-sm sm:text-base md:text-lg text-muted-foreground font-body font-light max-w-sm sm:max-w-md leading-relaxed px-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-        >
-          Transform your text into natural, lifelike speech. 
-          A new era of voice technology is coming.
-        </motion.p>
+        <SocialLinks />
 
-        {/* Progress Indicator */}
-        <ProgressIndicator />
+
 
         {/* Launch Year */}
         <motion.div
@@ -55,9 +44,9 @@ const Index = () => {
           <div className="h-px w-8 sm:w-12 bg-border" />
         </motion.div>
 
-        {/* Social Links */}
-        <SocialLinks />
       </div>
+
+
 
       {/* Footer */}
       <motion.footer
