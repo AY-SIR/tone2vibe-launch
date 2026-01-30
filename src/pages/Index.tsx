@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import Logo from "@/components/Logo";
-import SocialLinks from "@/components/SocialLinks";
+
 
 const Index = () => {
   return (
@@ -26,7 +26,7 @@ const Index = () => {
           </h2>
         </motion.div>
 
-        <SocialLinks />
+        
 
 
 
