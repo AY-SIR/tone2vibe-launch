@@ -4,7 +4,7 @@ import Logo from "@/components/Logo";
 
 const Index = () => {
   return (
-<div className="relative h-screen flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden">
+<div className="relative min-h-[100dvh] flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden">
       <BackgroundOrbs />
 
       <div className="relative z-10 flex flex-col items-center justify-center max-w-2xl mx-auto text-center space-y-8 sm:space-y-12">
