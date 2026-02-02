@@ -26,8 +26,6 @@ const Index = () => {
         </motion.div>
 
 
-
-
         {/* Launch Year */}
         <motion.div
           className="flex items-center gap-3"
@@ -42,6 +40,18 @@ const Index = () => {
           <div className="h-px w-8 sm:w-12 bg-border" />
         </motion.div>
 
+{/* Contact Email */}
+  <p className="text-xs sm:text-sm text-muted-foreground/80 font-body tracking-wide">
+    For any queries:
+
+    <a
+      href="mailto:info@tone2vibe.in"
+      className="ml-1 underline underline-offset-4 hover:text-foreground transition-colors duration-300"
+    >
+      info@tone2vibe.in
+    </a>
+  </p>
+
       </div>
 
 
@@ -53,6 +63,8 @@ const Index = () => {
         animate={{ opacity: 1 }}
         transition={{ duration: 1, delay: 1.2 }}
       >
+
+
         <p className="text-[10px] sm:text-xs text-muted-foreground/60 font-body tracking-wide">
           © 2026 tone2vibe.in · All rights reserved.
         </p>
