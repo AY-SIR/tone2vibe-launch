@@ -46,17 +46,24 @@
     <meta name="twitter:image" content="https://www.tone2vibe.in/favimage.png" />
     <meta name="twitter:site" content="@tone2vibe" />
 
-    <!-- Structured Data (Schema.org) -->
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Tone2Vibe",
-        "url": "https://www.tone2vibe.in/",
-        "description": "Tone2Vibe is launching in 2026 — a bold new creative platform where sound, emotion, and digital expression merge to create powerful vibes.",
-        "inLanguage": "en",
-  "logo": "https://www.tone2vibe.in/favimage.png"
-      }
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "Tone2Vibe",
+      "url": "https://www.tone2vibe.in/",
+      "logo": "https://www.tone2vibe.in/favimage.png"
+    },
+    {
+      "@type": "WebSite",
+      "name": "Tone2Vibe",
+      "url": "https://www.tone2vibe.in/",
+      "inLanguage": "en"
+    }
+  ]
+}
     </script>
 
     <!-- Performance -->
