@@ -9,7 +9,7 @@ const Logo = () => {
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
       {/* Logo Text */}
-      <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-elegant font-semibold tracking-wide text-foreground">
+      <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-6xl font-elegant font-semibold tracking-wide text-foreground">
         Tone
         <span className="text-muted-foreground font-light">2</span>
         vibe

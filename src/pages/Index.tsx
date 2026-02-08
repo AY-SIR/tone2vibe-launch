@@ -1,17 +1,21 @@
 import { motion } from "framer-motion";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import Logo from "@/components/Logo";
+import SocialLinks from "@/components/SocialLinks";
 
 const Index = () => {
   return (
-<div className="relative min-h-[100dvh] flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden">
+    <div className="relative min-h-[100dvh] flex flex-col justify-between px-4 sm:px-6 overflow-hidden">
+
       <BackgroundOrbs />
 
-      <div className="relative z-10 flex flex-col items-center justify-center max-w-2xl mx-auto text-center space-y-8 sm:space-y-12">
+      {/* Center Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center flex-1 max-w-2xl mx-auto text-center space-y-8 sm:space-y-12">
+
         {/* Logo */}
         <Logo />
 
-        {/* Main Headline */}
+        {/* Headline */}
         <motion.div
           className="space-y-4 sm:space-y-6"
           initial={{ opacity: 0, y: 30 }}
@@ -21,14 +25,15 @@ const Index = () => {
           <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-elegant font-medium leading-tight tracking-tight text-foreground px-2">
             Something fresh
             <br />
-            <span className="text-muted-foreground">is coming soon</span>
+            <span className="text-muted-foreground">
+              is coming soon
+            </span>
           </h2>
         </motion.div>
 
-
         {/* Launch Year */}
         <motion.div
-          className="flex items-center gap-3"
+          className="flex items-center justify-center gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.9 }}
@@ -40,35 +45,33 @@ const Index = () => {
           <div className="h-px w-8 sm:w-12 bg-border" />
         </motion.div>
 
-{/* Contact Email */}
-  <p className="text-xs sm:text-sm text-muted-foreground/80 font-body tracking-wide">
-    For any queries:
+        {/* Social Links */}
+        <SocialLinks />
 
-    <a
-      href="mailto:info@tone2vibe.in"
-      className="ml-1 underline underline-offset-4 hover:text-foreground transition-colors duration-300"
-    >
-      info@tone2vibe.in
-    </a>
-  </p>
-
+        {/* Contact Email */}
+        <p className="text-xs sm:text-sm text-muted-foreground/80 font-body tracking-wide">
+          For any queries:
+          <a
+            href="mailto:info@tone2vibe.in"
+            className="ml-1 underline underline-offset-4 hover:text-foreground hover:opacity-80 transition-all duration-300"
+          >
+            info@tone2vibe.in
+          </a>
+        </p>
       </div>
-
-
 
       {/* Footer */}
       <motion.footer
-        className="absolute bottom-4 sm:bottom-8 left-0 right-0 text-center px-4"
+        className="relative z-10 text-center py-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1, delay: 1.2 }}
       >
-
-
         <p className="text-[10px] sm:text-xs text-muted-foreground/60 font-body tracking-wide">
           © 2026 tone2vibe.in · All rights reserved.
         </p>
       </motion.footer>
+
     </div>
   );
 };
