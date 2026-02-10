@@ -40,7 +40,7 @@ const Index = () => {
         >
           <div className="h-px w-8 sm:w-12 bg-border" />
           <span className="text-xs sm:text-sm font-body text-muted-foreground tracking-widest uppercase">
-            Launching 2026
+            Launching Soon
           </span>
           <div className="h-px w-8 sm:w-12 bg-border" />
         </motion.div>
