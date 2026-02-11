@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import Logo from "@/components/Logo";
-import SocialLinks from "@/components/SocialLinks";
+
 
 const Index = () => {
   return (
@@ -45,8 +45,7 @@ const Index = () => {
           <div className="h-px w-8 sm:w-12 bg-border" />
         </motion.div>
 
-        {/* Social Links */}
-        <SocialLinks />
+      
 
         {/* Contact Email */}
         <p className="text-xs sm:text-sm text-muted-foreground/80 font-body tracking-wide">
