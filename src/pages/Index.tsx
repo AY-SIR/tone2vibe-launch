@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import Logo from "@/components/Logo";
+import SubscribeSection from "@/components/SubscribeSection";
 
 
 const Index = () => {
@@ -45,7 +46,8 @@ const Index = () => {
           <div className="h-px w-8 sm:w-12 bg-border" />
         </motion.div>
 
-      
+        {/* Subscribe Section */}
+        <SubscribeSection />
 
         {/* Contact Email */}
         <p className="text-xs sm:text-sm text-muted-foreground/80 font-body tracking-wide">
