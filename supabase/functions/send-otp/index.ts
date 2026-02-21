@@ -7,7 +7,10 @@ const corsHeaders = {
 };
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // Crypto-secure OTP
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return (100000 + (array[0] % 900000)).toString();
 }
 
 Deno.serve(async (req) => {
@@ -15,26 +18,26 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+
   try {
-    const { email } = await req.json();
+    const body = await req.json();
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
 
-    if (!email || typeof email !== "string") {
+    if (!email) {
       return new Response(
-        JSON.stringify({ error: "Valid email is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, code: "invalid_email", message: "Valid email is required" }),
+        { status: 200, headers: jsonHeaders }
       );
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email) || email.length > 254) {
       return new Response(
-        JSON.stringify({ error: "Invalid email format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, code: "invalid_email", message: "Invalid email format" }),
+        { status: 200, headers: jsonHeaders }
       );
     }
-
-    const trimmedEmail = email.trim().toLowerCase();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -44,39 +47,49 @@ Deno.serve(async (req) => {
     // Check if already verified
     const { data: existing } = await supabase
       .from("subscribers")
-      .select("id, verified")
-      .eq("email", trimmedEmail)
+      .select("id, verified, otp_expires_at")
+      .eq("email", email)
       .maybeSingle();
 
     if (existing?.verified) {
       return new Response(
-        JSON.stringify({ error: "already_subscribed" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, code: "already_subscribed", message: "This email is already subscribed." }),
+        { status: 200, headers: jsonHeaders }
       );
     }
 
+    // Rate limit: don't allow resend within 30 seconds
+    if (existing?.otp_expires_at) {
+      const lastSent = new Date(existing.otp_expires_at).getTime() - 10 * 60 * 1000; // when OTP was created
+      const secondsSince = (Date.now() - lastSent) / 1000;
+      if (secondsSince < 30) {
+        return new Response(
+          JSON.stringify({ success: false, code: "rate_limited", message: "Please wait before requesting another code." }),
+          { status: 200, headers: jsonHeaders }
+        );
+      }
+    }
+
     const otp = generateOTP();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     if (existing) {
-      // Update existing unverified record
       await supabase
         .from("subscribers")
         .update({ otp_code: otp, otp_expires_at: otpExpiresAt })
         .eq("id", existing.id);
     } else {
-      // Insert new
       await supabase
         .from("subscribers")
-        .insert({ email: trimmedEmail, otp_code: otp, otp_expires_at: otpExpiresAt });
+        .insert({ email, otp_code: otp, otp_expires_at: otpExpiresAt });
     }
 
-    // Send OTP via Brevo
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
+      console.error("BREVO_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Email service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, code: "server_error", message: "Email service not configured" }),
+        { status: 200, headers: jsonHeaders }
       );
     }
 
@@ -89,7 +102,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         sender: { name: "Tone2vibe", email: "noreply@tone2vibe.in" },
-        to: [{ email: trimmedEmail }],
+        to: [{ email }],
         subject: "Your Tone2vibe Verification Code",
         htmlContent: `
           <div style="font-family: 'Georgia', serif; max-width: 480px; margin: 0 auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px;">
@@ -110,8 +123,8 @@ Deno.serve(async (req) => {
       const errText = await brevoResponse.text();
       console.error("Brevo error:", errText);
       return new Response(
-        JSON.stringify({ error: "Failed to send email" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, code: "send_failed", message: "Failed to send email. Please try again." }),
+        { status: 200, headers: jsonHeaders }
       );
     }
 
@@ -119,13 +132,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: jsonHeaders }
     );
   } catch (error) {
     console.error("send-otp error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, code: "server_error", message: "Something went wrong. Please try again." }),
+      { status: 200, headers: jsonHeaders }
     );
   }
 });
