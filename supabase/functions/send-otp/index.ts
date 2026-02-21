@@ -1,19 +1,35 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+// 1. Define your allowed domains
+const ALLOWED_ORIGINS = [
+  "https://tone2vibe.in",
+  "https://www.tone2vibe.in",
+  "https://tone2vibe-launch.vercel.app",
+];
+
+// 2. Dynamic CORS helper function
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin);
+
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
 
 function generateOTP(): string {
-  // Crypto-secure OTP
   const array = new Uint32Array(1);
   crypto.getRandomValues(array);
   return (100000 + (array[0] % 900000)).toString();
 }
 
 Deno.serve(async (req) => {
+  // Get headers for the current request
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -27,7 +43,7 @@ Deno.serve(async (req) => {
     if (!email) {
       return new Response(
         JSON.stringify({ success: false, code: "invalid_email", message: "Valid email is required" }),
-        { status: 200, headers: jsonHeaders }
+        { status: 400, headers: jsonHeaders }
       );
     }
 
@@ -35,7 +51,7 @@ Deno.serve(async (req) => {
     if (!emailRegex.test(email) || email.length > 254) {
       return new Response(
         JSON.stringify({ success: false, code: "invalid_email", message: "Invalid email format" }),
-        { status: 200, headers: jsonHeaders }
+        { status: 400, headers: jsonHeaders }
       );
     }
 
@@ -44,7 +60,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if already verified
     const { data: existing } = await supabase
       .from("subscribers")
       .select("id, verified, otp_expires_at")
@@ -58,14 +73,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Rate limit: don't allow resend within 30 seconds
+    // Rate limit check
     if (existing?.otp_expires_at) {
-      const lastSent = new Date(existing.otp_expires_at).getTime() - 10 * 60 * 1000; // when OTP was created
+      const lastSent = new Date(existing.otp_expires_at).getTime() - 10 * 60 * 1000;
       const secondsSince = (Date.now() - lastSent) / 1000;
       if (secondsSince < 30) {
         return new Response(
-          JSON.stringify({ success: false, code: "rate_limited", message: "Please wait before requesting another code." }),
-          { status: 200, headers: jsonHeaders }
+          JSON.stringify({ success: false, code: "rate_limited", message: "Please wait 30 seconds before requesting again." }),
+          { status: 429, headers: jsonHeaders }
         );
       }
     }
@@ -86,11 +101,7 @@ Deno.serve(async (req) => {
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
-      console.error("BREVO_API_KEY not configured");
-      return new Response(
-        JSON.stringify({ success: false, code: "server_error", message: "Email service not configured" }),
-        { status: 200, headers: jsonHeaders }
-      );
+      throw new Error("BREVO_API_KEY missing");
     }
 
     const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -123,12 +134,10 @@ Deno.serve(async (req) => {
       const errText = await brevoResponse.text();
       console.error("Brevo error:", errText);
       return new Response(
-        JSON.stringify({ success: false, code: "send_failed", message: "Failed to send email. Please try again." }),
-        { status: 200, headers: jsonHeaders }
+        JSON.stringify({ success: false, code: "send_failed", message: "Failed to send email." }),
+        { status: 500, headers: jsonHeaders }
       );
     }
-
-    await brevoResponse.text();
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -137,8 +146,8 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("send-otp error:", error);
     return new Response(
-      JSON.stringify({ success: false, code: "server_error", message: "Something went wrong. Please try again." }),
-      { status: 200, headers: jsonHeaders }
+      JSON.stringify({ success: false, code: "server_error", message: "Something went wrong." }),
+      { status: 500, headers: jsonHeaders }
     );
   }
 });
