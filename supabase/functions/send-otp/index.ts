@@ -1,24 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// 1. Define your allowed domains
-const ALLOWED_ORIGINS = [
-  "https://tone2vibe.in",
-  "https://www.tone2vibe.in",
-  "https://tone2vibe-launch.vercel.app",
-];
-
-// 2. Dynamic CORS helper function
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("origin") || "";
-  const isAllowed = ALLOWED_ORIGINS.includes(origin);
-
-  return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 function generateOTP(): string {
   const array = new Uint32Array(1);
@@ -27,9 +14,6 @@ function generateOTP(): string {
 }
 
 Deno.serve(async (req) => {
-  // Get headers for the current request
-  const corsHeaders = getCorsHeaders(req);
-
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

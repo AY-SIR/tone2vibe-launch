@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Mail, ArrowRight, CheckCircle2, Loader2, X, RefreshCw } from "lucide-react";
+import { Mail, ArrowRight, CheckCircle2, Loader2, X, RefreshCw, Users } from "lucide-react";
 
 type Step = "email" | "otp" | "success";
 
@@ -15,7 +15,22 @@ const SubscribeSection = () => {
   const [loading, setLoading] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchSubscriberCount = useCallback(async () => {
+    try {
+      const { count, error } = await supabase
+        .from("subscribers")
+        .select("*", { count: "exact", head: true })
+        .eq("verified", true);
+      if (!error && count !== null) setSubscriberCount(count);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchSubscriberCount();
+  }, [fetchSubscriberCount]);
 
   const startCooldown = useCallback(() => {
     setCooldown(COOLDOWN_SECONDS);
@@ -31,14 +46,13 @@ const SubscribeSection = () => {
     }, 1000);
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, []);
 
-  // AUTO-VERIFY EFFECT: Triggers when 6th digit is entered
+  // AUTO-VERIFY: Triggers when 6th digit is entered
   useEffect(() => {
     if (otp.length === 6 && !loading && step === "otp") {
       handleVerifyOtp();
@@ -61,7 +75,6 @@ const SubscribeSection = () => {
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = email.trim().toLowerCase();
-
     if (!validateEmail(trimmed)) return;
 
     setLoading(true);
@@ -93,7 +106,7 @@ const SubscribeSection = () => {
       setOtp("");
     } catch (err) {
       console.error(err);
-      toast({ title: "Temporary issue", description: "We’re unable to connect right now. Please check your internet and try again shortly.", variant: "destructive" });
+      toast({ title: "Temporary issue", description: "We're unable to connect right now. Please check your internet and try again shortly.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -102,8 +115,7 @@ const SubscribeSection = () => {
   const handleVerifyOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmedOtp = otp.trim();
-
-    if (trimmedOtp.length !== 6) return; // Silent return for auto-verify, handleVerifyOtp (button) is disabled anyway
+    if (trimmedOtp.length !== 6) return;
 
     setLoading(true);
     try {
@@ -120,7 +132,7 @@ const SubscribeSection = () => {
           setShowOtpModal(false);
         } else if (code === "wrong_otp") {
           toast({ title: "Incorrect code", description: "The code you entered is invalid.", variant: "destructive" });
-          setOtp(""); // Clear input on wrong code so they can try again
+          setOtp("");
         } else {
           toast({ title: "Verification failed", description: data?.message || "Please try again.", variant: "destructive" });
         }
@@ -131,6 +143,7 @@ const SubscribeSection = () => {
       setStep("success");
       setShowOtpModal(false);
       toast({ title: "Welcome aboard!", description: "You're now subscribed to Tone2vibe." });
+      fetchSubscriberCount(); // Refresh count after successful subscribe
     } catch (err) {
       console.error(err);
       toast({ title: "Error", description: "Something went wrong during verification.", variant: "destructive" });
@@ -171,7 +184,6 @@ const SubscribeSection = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 z-10 pointer-events-none" />
@@ -179,6 +191,7 @@ const SubscribeSection = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    maxLength={254}
                     placeholder="your@email.com"
                     className="w-full pl-10 pr-4 py-2.5 text-sm font-body rounded-full border border-border bg-background/80 backdrop-blur-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-all duration-300"
                   />
@@ -208,8 +221,24 @@ const SubscribeSection = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Subscriber Count */}
+        {subscriberCount !== null && subscriberCount > 0 && (
+          <motion.div
+            className="flex items-center justify-center gap-1.5 mt-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <Users className="w-3 h-3 text-muted-foreground/60" />
+            <span className="text-[11px] sm:text-xs text-muted-foreground/60 font-body tracking-wide">
+              {subscriberCount.toLocaleString()} {subscriberCount === 1 ? "person has" : "people have"} joined
+            </span>
+          </motion.div>
+        )}
       </motion.div>
 
+      {/* OTP Modal */}
       <AnimatePresence>
         {showOtpModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
@@ -248,11 +277,13 @@ const SubscribeSection = () => {
                 <form onSubmit={handleVerifyOtp} noValidate className="w-full flex flex-col gap-4">
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="••••••"
                     className="w-full text-center text-3xl tracking-[0.4em] font-mono py-4 rounded-2xl border border-border bg-muted/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                     autoFocus
+                    autoComplete="one-time-code"
                   />
 
                   <button
