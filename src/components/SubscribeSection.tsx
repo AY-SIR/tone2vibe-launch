@@ -31,14 +31,12 @@ const SubscribeSection = () => {
     }, 1000);
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, []);
 
-  // AUTO-VERIFY EFFECT: Triggers when 6th digit is entered
   useEffect(() => {
     if (otp.length === 6 && !loading && step === "otp") {
       handleVerifyOtp();
@@ -74,13 +72,14 @@ const SubscribeSection = () => {
 
       if (!data?.success) {
         const code = data?.code;
+        // PRESERVED: Your existing subscription logic
         if (code === "already_subscribed") {
           toast({ title: "Already subscribed!", description: "This email is already on our list." });
           setStep("success");
         } else if (code === "rate_limited") {
-          toast({ title: "Slow down", description: "Please wait before requesting another code.", variant: "destructive" });
+          toast({ title: "Slow down a bit", description: "Please wait a moment before requesting another code.", variant: "destructive" });
         } else {
-          toast({ title: "Error", description: data?.message || "Please try again.", variant: "destructive" });
+          toast({ title: "Something went wrong", description: data?.message || "Please try again in a moment.", variant: "destructive" });
         }
         setLoading(false);
         return;
@@ -92,8 +91,13 @@ const SubscribeSection = () => {
       setShowOtpModal(true);
       setOtp("");
     } catch (err) {
-      console.error(err);
-      toast({ title: "Connection error", description: "Could not reach the server. Try again.", variant: "destructive" });
+      console.error("Subscription Error:", err);
+      // FRIENDLY: Server/Connection error message
+      toast({
+     title: "Hang tight!",
+description: "We couldn’t reach the server just now. A quick refresh or internet check should fix it.",
+variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -103,7 +107,7 @@ const SubscribeSection = () => {
     if (e) e.preventDefault();
     const trimmedOtp = otp.trim();
 
-    if (trimmedOtp.length !== 6) return; // Silent return for auto-verify, handleVerifyOtp (button) is disabled anyway
+    if (trimmedOtp.length !== 6) return;
 
     setLoading(true);
     try {
@@ -119,10 +123,10 @@ const SubscribeSection = () => {
           setStep("success");
           setShowOtpModal(false);
         } else if (code === "wrong_otp") {
-          toast({ title: "Incorrect code", description: "The code you entered is invalid.", variant: "destructive" });
-          setOtp(""); // Clear input on wrong code so they can try again
+          toast({ title: "Invalid code", description: "The code you entered is incorrect. Please try again.", variant: "destructive" });
+          setOtp("");
         } else {
-          toast({ title: "Verification failed", description: data?.message || "Please try again.", variant: "destructive" });
+          toast({ title: "Verification failed", description: data?.message || "We couldn't verify that code.", variant: "destructive" });
         }
         setLoading(false);
         return;
@@ -132,8 +136,13 @@ const SubscribeSection = () => {
       setShowOtpModal(false);
       toast({ title: "Welcome aboard!", description: "You're now subscribed to Tone2vibe." });
     } catch (err) {
-      console.error(err);
-      toast({ title: "Error", description: "Something went wrong during verification.", variant: "destructive" });
+      console.error("Verification Error:", err);
+      // FRIENDLY: Server/Connection error message
+      toast({
+        title: "Almost there!",
+        description: "We hit a small technical snag. Please try clicking 'Confirm' again.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -171,9 +180,6 @@ const SubscribeSection = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              <p className="text-xs sm:text-sm text-muted-foreground font-body text-center tracking-wide">
-                Get notified when we launch
-              </p>
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 z-10 pointer-events-none" />
@@ -181,6 +187,8 @@ const SubscribeSection = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                      maxLength={50}
+
                     placeholder="your@email.com"
                     className="w-full pl-10 pr-4 py-2.5 text-sm font-body rounded-full border border-border bg-background/80 backdrop-blur-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-all duration-300"
                   />
