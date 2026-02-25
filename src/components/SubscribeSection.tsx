@@ -83,7 +83,10 @@ const SubscribeSection = () => {
         body: { email: trimmed },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
 
       if (!data?.success) {
         const code = data?.code;
@@ -104,9 +107,12 @@ const SubscribeSection = () => {
       setStep("otp");
       setShowOtpModal(true);
       setOtp("");
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Temporary issue", description: "We're unable to connect right now. Please check your internet and try again shortly.", variant: "destructive" });
+    } catch (err: any) {
+      console.error("Send OTP error:", err);
+      const errorMsg = err?.message?.includes("Failed to send")
+        ? "Unable to connect to the server. Please check your internet connection and try again."
+        : "Something went wrong. Please try again.";
+      toast({ title: "Connection Error", description: errorMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -143,10 +149,13 @@ const SubscribeSection = () => {
       setStep("success");
       setShowOtpModal(false);
       toast({ title: "Welcome aboard!", description: "You're now subscribed to Tone2vibe." });
-      fetchSubscriberCount(); // Refresh count after successful subscribe
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Error", description: "Something went wrong during verification.", variant: "destructive" });
+      setTimeout(() => fetchSubscriberCount(), 500);
+    } catch (err: any) {
+      console.error("Verify OTP error:", err);
+      const errorMsg = err?.message?.includes("Failed to send")
+        ? "Unable to connect to the server. Please check your internet connection and try again."
+        : "Something went wrong during verification.";
+      toast({ title: "Verification Error", description: errorMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
