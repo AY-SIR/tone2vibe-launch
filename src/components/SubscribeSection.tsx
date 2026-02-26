@@ -72,6 +72,48 @@ const SubscribeSection = () => {
     return true;
   };
 
+  const invokeEdgeWithFallback = useCallback(
+    async (functionName: "send-otp" | "verify-otp", payload: Record<string, string>) => {
+      const { data, error } = await supabase.functions.invoke(functionName, { body: payload });
+
+      if (!error) return data;
+
+      const isNetworkError =
+        error.name === "FunctionsFetchError" ||
+        error.message?.includes("Failed to send a request to the Edge Function");
+
+      if (!isNetworkError) throw error;
+
+      const response = await fetch(
+        `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/${functionName}`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const raw = await response.text();
+      let fallbackData: any = null;
+
+      if (raw) {
+        try {
+          fallbackData = JSON.parse(raw);
+        } catch {
+          throw new Error("Invalid server response");
+        }
+      }
+
+      if (!response.ok) {
+        const fallbackError = new Error(fallbackData?.message || `Request failed (${response.status})`);
+        (fallbackError as any).code = fallbackData?.code;
+        throw fallbackError;
+      }
+
+      return fallbackData;
+    },
+    []
+  );
+
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = email.trim().toLowerCase();
@@ -79,14 +121,9 @@ const SubscribeSection = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-otp", {
-        body: { email: trimmed },
+      const data = await invokeEdgeWithFallback("send-otp", {
+        email: trimmed,
       });
-
-      if (error) {
-        console.error("Edge function error:", error);
-        throw error;
-      }
 
       if (!data?.success) {
         const code = data?.code;
@@ -125,11 +162,10 @@ const SubscribeSection = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-otp", {
-        body: { email: email.trim().toLowerCase(), otp: trimmedOtp },
+      const data = await invokeEdgeWithFallback("verify-otp", {
+        email: email.trim().toLowerCase(),
+        otp: trimmedOtp,
       });
-
-      if (error) throw error;
 
       if (!data?.success) {
         const code = data?.code;
