@@ -1,19 +1,29 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-const allowedOrigins = [
+const allowedOrigins = new Set([
   "http://localhost:8080",
+  "http://localhost:5173",
   "https://tone2vibe.in",
   "https://www.tone2vibe.in",
-  "https://tone2vibe-launch.vercel.app"
-];
+  "https://tone2vibe-launch.vercel.app",
+]);
+
+const previewOriginRegex = /^https:\/\/[a-z0-9-]+\.(lovableproject\.com|lovable\.app)$/i;
+
+function resolveAllowedOrigin(origin: string | null) {
+  if (!origin) return "https://tone2vibe.in";
+  if (allowedOrigins.has(origin) || previewOriginRegex.test(origin)) return origin;
+  return null;
+}
 
 function getCorsHeaders(origin: string | null) {
-  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const allowedOrigin = resolveAllowedOrigin(origin);
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": allowedOrigin ?? "https://tone2vibe.in",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
+    "Vary": "Origin",
   };
 }
 
@@ -26,12 +36,20 @@ function generateOTP(): string {
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
+  const isOriginAllowed = !origin || resolveAllowedOrigin(origin) !== null;
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: isOriginAllowed ? 204 : 403, headers: corsHeaders });
   }
 
   const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+
+  if (!isOriginAllowed) {
+    return new Response(
+      JSON.stringify({ success: false, code: "origin_not_allowed", message: "Origin not allowed" }),
+      { status: 403, headers: jsonHeaders }
+    );
+  }
 
   try {
     const body = await req.json();
@@ -57,11 +75,13 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("subscribers")
       .select("id, verified, otp_expires_at")
       .eq("email", email)
       .maybeSingle();
+
+    if (existingError) throw existingError;
 
     if (existing?.verified) {
       return new Response(
@@ -86,14 +106,16 @@ Deno.serve(async (req) => {
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     if (existing) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("subscribers")
         .update({ otp_code: otp, otp_expires_at: otpExpiresAt })
         .eq("id", existing.id);
+      if (updateError) throw updateError;
     } else {
-      await supabase
+      const { error: insertError } = await supabase
         .from("subscribers")
         .insert({ email, otp_code: otp, otp_expires_at: otpExpiresAt });
+      if (insertError) throw insertError;
     }
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
@@ -101,31 +123,49 @@ Deno.serve(async (req) => {
       throw new Error("BREVO_API_KEY missing");
     }
 
-    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "accept": "application/json",
-        "api-key": brevoApiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        sender: { name: "Tone2vibe", email: "noreply@tone2vibe.in" },
-        to: [{ email }],
-        subject: "Your Tone2vibe Verification Code",
-        htmlContent: `
-          <div style="font-family: 'Georgia', serif; max-width: 480px; margin: 0 auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px;">
-            <h1 style="font-size: 28px; color: #2a2520; margin: 0 0 8px; font-weight: 600;">Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe</h1>
-            <p style="color: #8a8078; font-size: 14px; margin: 0 0 32px;">Verify your subscription</p>
-            <div style="background: #fff; border-radius: 8px; padding: 32px; text-align: center; border: 1px solid #ede9e3;">
-              <p style="color: #5a5550; font-size: 14px; margin: 0 0 16px;">Your verification code is:</p>
-              <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2a2520; margin: 0 0 16px;">${otp}</div>
-              <p style="color: #8a8078; font-size: 12px; margin: 0;">This code expires in 10 minutes</p>
+    const controller = new AbortController();
+    const timeoutMs = 12000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let brevoResponse: Response;
+    try {
+      brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": brevoApiKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "Tone2vibe", email: "noreply@tone2vibe.in" },
+          to: [{ email }],
+          subject: "Your Tone2vibe Verification Code",
+          htmlContent: `
+            <div style="font-family: 'Georgia', serif; max-width: 480px; margin: 0 auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px;">
+              <h1 style="font-size: 28px; color: #2a2520; margin: 0 0 8px; font-weight: 600;">Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe</h1>
+              <p style="color: #8a8078; font-size: 14px; margin: 0 0 32px;">Verify your subscription</p>
+              <div style="background: #fff; border-radius: 8px; padding: 32px; text-align: center; border: 1px solid #ede9e3;">
+                <p style="color: #5a5550; font-size: 14px; margin: 0 0 16px;">Your verification code is:</p>
+                <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2a2520; margin: 0 0 16px;">${otp}</div>
+                <p style="color: #8a8078; font-size: 12px; margin: 0;">This code expires in 10 minutes</p>
+              </div>
+              <p style="color: #b0a89e; font-size: 11px; text-align: center; margin: 24px 0 0;">If you didn't request this, you can safely ignore this email.</p>
             </div>
-            <p style="color: #b0a89e; font-size: 11px; text-align: center; margin: 24px 0 0;">If you didn't request this, you can safely ignore this email.</p>
-          </div>
-        `,
-      }),
-    });
+          `,
+        }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return new Response(
+          JSON.stringify({ success: false, code: "send_timeout", message: "Email service timeout. Please try again." }),
+          { status: 504, headers: jsonHeaders }
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!brevoResponse.ok) {
       const errText = await brevoResponse.text();
