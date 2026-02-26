@@ -1,31 +1,49 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-const allowedOrigins = [
+const allowedOrigins = new Set([
   "http://localhost:8080",
+  "http://localhost:5173",
   "https://tone2vibe.in",
   "https://www.tone2vibe.in",
-  "https://tone2vibe-launch.vercel.app"
-];
+  "https://tone2vibe-launch.vercel.app",
+]);
+
+const previewOriginRegex = /^https:\/\/[a-z0-9-]+\.(lovableproject\.com|lovable\.app)$/i;
+
+function resolveAllowedOrigin(origin: string | null) {
+  if (!origin) return "https://tone2vibe.in";
+  if (allowedOrigins.has(origin) || previewOriginRegex.test(origin)) return origin;
+  return null;
+}
 
 function getCorsHeaders(origin: string | null) {
-  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const allowedOrigin = resolveAllowedOrigin(origin);
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": allowedOrigin ?? "https://tone2vibe.in",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
+    "Vary": "Origin",
   };
 }
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
+  const isOriginAllowed = !origin || resolveAllowedOrigin(origin) !== null;
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: isOriginAllowed ? 204 : 403, headers: corsHeaders });
   }
 
   const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+
+  if (!isOriginAllowed) {
+    return new Response(
+      JSON.stringify({ success: false, code: "origin_not_allowed", message: "Origin not allowed" }),
+      { status: 403, headers: jsonHeaders }
+    );
+  }
 
   try {
     const body = await req.json();
@@ -60,7 +78,11 @@ Deno.serve(async (req) => {
       .eq("email", email)
       .maybeSingle();
 
-    if (fetchError || !subscriber) {
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    if (!subscriber) {
       return new Response(
         JSON.stringify({ success: false, code: "not_found", message: "No subscription found for this email." }),
         { status: 404, headers: jsonHeaders }
