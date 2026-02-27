@@ -20,12 +20,18 @@ const SubscribeSection = () => {
 
   const fetchSubscriberCount = useCallback(async () => {
     try {
-      const { count, error } = await supabase
-        .from("subscribers")
-        .select("*", { count: "exact", head: true })
-        .eq("verified", true);
-      if (!error && count !== null) setSubscriberCount(count);
-    } catch {}
+      const { data, error } = await supabase.functions.invoke("subscriber-count");
+      if (!error && data?.count != null) setSubscriberCount(data.count);
+    } catch {
+      // Fallback: direct fetch
+      try {
+        const res = await fetch(
+          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/subscriber-count`
+        );
+        const json = await res.json();
+        if (json?.count != null) setSubscriberCount(json.count);
+      } catch {}
+    }
   }, []);
 
   useEffect(() => {
