@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
           htmlContent: `
           <div style="font-family: Georgia, serif; max-width: 480px; margin: 0 auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px;">
 
-              <h1 style="font-size: 28px; color: #2a2520; margin: 0 0 8px; font-weight: 600;">Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe</h1>
+              <h1 style="font-size: 28px; color: #2a2520; margin: 0 0 16px; font-weight: 600;">Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe</h1>
 
               <div style="background: #fff; border-radius: 8px; padding: 32px; text-align: center; border: 1px solid #ede9e3;">
 
