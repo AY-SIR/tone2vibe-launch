@@ -141,38 +141,37 @@ Deno.serve(async (req) => {
           to: [{ email }],
           subject: "Your Tone2vibe Verification Code",
           htmlContent: `
-           <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 20px auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px; border: 1px solid #eee;">
+          <div style="font-family: Georgia, serif; max-width: 480px; margin: 0 auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px;">
 
-  <div style="text-align: center; margin-bottom: 32px;">
-    <h1 style="font-family: Georgia, serif; font-size: 28px; color: #2a2520; margin: 0; font-weight: 600;">
-      Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe
-    </h1>
-    <p style="color: #8a8078; font-size: 14px; margin: 4px 0 0;">Verify your subscription</p>
-  </div>
+              <h1 style="font-size: 28px; color: #2a2520; margin: 0 0 8px; font-weight: 600;">Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe</h1>
 
-  <div style="background: #ffffff; border-radius: 8px; padding: 32px; text-align: center; border: 1px solid #ede9e3; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-    <p style="color: #5a5550; font-size: 15px; margin: 0 0 16px;">Hello! Use the code below to verify your account:</p>
+              <div style="background: #fff; border-radius: 8px; padding: 32px; text-align: center; border: 1px solid #ede9e3;">
 
-    <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2a2520; margin: 0 0 16px; font-family: monospace; user-select: all;">
-      ${otp}
-    </div>
+                <p style="color: #5a5550; font-size: 14px; margin: 0 0 16px;">Your verification code is:</p>
 
-    <p style="color: #e67e22; font-size: 12px; margin: 0 0 24px; font-weight: 600;">
-      This code expires in 10 minutes
-    </p>
+                <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2a2520; margin: 0 0 16px;">${otp}</div>
 
+                <p style="color: #8a8078; font-size: 12px; margin: 0;">This code expires in 10 minutes</p>
 
-  </div>
+              </div>
 
-  <div style="text-align: center; margin-top: 24px;">
+<div style="text-align: center; margin-top: 24px;">
+
     <p style="color: #b0a89e; font-size: 11px; margin: 0 0 8px;">
+
       If you didn't request this, you can safely ignore this email.
+
     </p>
+
     <p style="color: #b0a89e; font-size: 11px; margin: 0;">
+
       Need help? <a href="mailto:info@tone2vibe.in" style="color: #8a8078; text-decoration: underline;">info@tone2vibe.in</a>
+
     </p>
+
   </div>
-</div>
+
+  </div>
           `,
         }),
         signal: controller.signal,
