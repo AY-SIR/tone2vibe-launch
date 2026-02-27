@@ -1,10 +1,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// 1. Allowed Domains List
+const ALLOWED_ORIGINS = [
+  "https://www.tone2vibe.in",
+  "https://tone2vibe.in",
+  "https://tone2vibe-launch.vercel.app",
+  "http://localhost:8080",
+];
 
 function generateOTP(): string {
   const array = new Uint32Array(1);
@@ -13,45 +15,59 @@ function generateOTP(): string {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+  const origin = req.headers.get("origin");
+
+  // 2. Dynamic CORS Header Logic
+  const headers = new Headers({
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  });
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    headers.set("Access-Control-Allow-Origin", origin);
   }
 
-  const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers });
+  }
+
+  headers.set("Content-Type", "application/json");
 
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ success: false, code: "method_not_allowed" }), {
       status: 405,
-      headers: jsonHeaders,
+      headers,
     });
   }
 
   try {
-    let body: unknown;
+    let body: any;
     try {
       body = await req.json();
     } catch {
       return new Response(
         JSON.stringify({ success: false, code: "invalid_json", message: "Invalid request body." }),
-        { status: 400, headers: jsonHeaders }
+        { status: 400, headers }
       );
     }
 
-    const email =
-      typeof (body as { email?: unknown })?.email === "string"
-        ? (body as { email: string }).email.trim().toLowerCase()
-        : "";
-
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
     if (!email || !emailRegex.test(email) || email.length > 254) {
       return new Response(
         JSON.stringify({ success: false, code: "invalid_email", message: "Invalid email format" }),
-        { status: 400, headers: jsonHeaders }
+        { status: 400, headers }
       );
     }
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
+    // Rate limiting & duplicate check logic
     const { data: existing, error: existingError } = await supabase
       .from("subscribers")
       .select("id, verified, otp_expires_at")
@@ -63,7 +79,7 @@ Deno.serve(async (req) => {
     if (existing?.verified) {
       return new Response(
         JSON.stringify({ success: false, code: "already_subscribed", message: "This email is already subscribed." }),
-        { status: 200, headers: jsonHeaders }
+        { status: 200, headers }
       );
     }
 
@@ -78,7 +94,7 @@ Deno.serve(async (req) => {
               code: "rate_limited",
               message: "Please wait 30 seconds before requesting again.",
             }),
-            { status: 429, headers: jsonHeaders }
+            { status: 429, headers }
           );
         }
       }
@@ -104,16 +120,16 @@ Deno.serve(async (req) => {
     if (!brevoApiKey) {
       return new Response(
         JSON.stringify({ success: false, code: "missing_brevo_key", message: "Email service is not configured." }),
-        { status: 500, headers: jsonHeaders }
+        { status: 500, headers }
       );
     }
 
+    // Email Sending with AbortController
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    let brevoResponse: Response;
     try {
-      brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+      const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
           accept: "application/json",
@@ -125,25 +141,56 @@ Deno.serve(async (req) => {
           to: [{ email }],
           subject: "Your Tone2vibe Verification Code",
           htmlContent: `
-            <div style="font-family: Georgia, serif; max-width: 480px; margin: 0 auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px;">
-              <h1 style="font-size: 28px; color: #2a2520; margin: 0 0 8px; font-weight: 600;">Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe</h1>
-              <p style="color: #8a8078; font-size: 14px; margin: 0 0 32px;">Verify your subscription</p>
-              <div style="background: #fff; border-radius: 8px; padding: 32px; text-align: center; border: 1px solid #ede9e3;">
-                <p style="color: #5a5550; font-size: 14px; margin: 0 0 16px;">Your verification code is:</p>
-                <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2a2520; margin: 0 0 16px;">${otp}</div>
-                <p style="color: #8a8078; font-size: 12px; margin: 0;">This code expires in 10 minutes</p>
-              </div>
-              <p style="color: #b0a89e; font-size: 11px; text-align: center; margin: 24px 0 0;">If you didn't request this, you can safely ignore this email.</p>
-            </div>
+           <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 20px auto; padding: 40px 24px; background: #faf9f7; border-radius: 12px; border: 1px solid #eee;">
+
+  <div style="text-align: center; margin-bottom: 32px;">
+    <h1 style="font-family: Georgia, serif; font-size: 28px; color: #2a2520; margin: 0; font-weight: 600;">
+      Tone<span style="font-weight: 300; color: #8a8078;">2</span>vibe
+    </h1>
+    <p style="color: #8a8078; font-size: 14px; margin: 4px 0 0;">Verify your subscription</p>
+  </div>
+
+  <div style="background: #ffffff; border-radius: 8px; padding: 32px; text-align: center; border: 1px solid #ede9e3; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+    <p style="color: #5a5550; font-size: 15px; margin: 0 0 16px;">Hello! Use the code below to verify your account:</p>
+
+    <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2a2520; margin: 0 0 16px; font-family: monospace; user-select: all;">
+      ${otp}
+    </div>
+
+    <p style="color: #e67e22; font-size: 12px; margin: 0 0 24px; font-weight: 600;">
+      This code expires in 10 minutes
+    </p>
+
+
+  </div>
+
+  <div style="text-align: center; margin-top: 24px;">
+    <p style="color: #b0a89e; font-size: 11px; margin: 0 0 8px;">
+      If you didn't request this, you can safely ignore this email.
+    </p>
+    <p style="color: #b0a89e; font-size: 11px; margin: 0;">
+      Need help? <a href="mailto:info@tone2vibe.in" style="color: #8a8078; text-decoration: underline;">info@tone2vibe.in</a>
+    </p>
+  </div>
+</div>
           `,
         }),
         signal: controller.signal,
       });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
+
+      if (!brevoResponse.ok) {
+        const errText = await brevoResponse.text();
+        console.error("Brevo error:", errText);
         return new Response(
-          JSON.stringify({ success: false, code: "send_timeout", message: "Email service timeout. Please try again." }),
-          { status: 504, headers: jsonHeaders }
+          JSON.stringify({ success: false, code: "send_failed", message: "Failed to send email." }),
+          { status: 502, headers }
+        );
+      }
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        return new Response(
+          JSON.stringify({ success: false, code: "send_timeout", message: "Email service timeout." }),
+          { status: 504, headers }
         );
       }
       throw error;
@@ -151,21 +198,13 @@ Deno.serve(async (req) => {
       clearTimeout(timeoutId);
     }
 
-    if (!brevoResponse.ok) {
-      const errText = await brevoResponse.text();
-      console.error("Brevo error:", errText);
-      return new Response(
-        JSON.stringify({ success: false, code: "send_failed", message: "Failed to send email." }),
-        { status: 502, headers: jsonHeaders }
-      );
-    }
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers });
 
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: jsonHeaders });
   } catch (error) {
     console.error("send-otp error:", error);
     return new Response(
       JSON.stringify({ success: false, code: "server_error", message: "Something went wrong." }),
-      { status: 500, headers: jsonHeaders }
+      { status: 500, headers }
     );
   }
 });

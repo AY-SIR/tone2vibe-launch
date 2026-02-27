@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://pogvbofwfenpujtdopdz.supabase.co";
+const SUPABASE_URL = "https://api.tone2vibe.workers.dev";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvZ3Zib2Z3ZmVucHVqdGRvcGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxODM4NTMsImV4cCI6MjA4Nzc1OTg1M30.WkySGP84Iv_0Ru5M3pckefYyTL8_9OGh6_LwVeEtXP0";
 
 // Import the supabase client like this:
@@ -15,3 +15,25 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
